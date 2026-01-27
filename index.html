@@ -3,220 +3,313 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Объект оценки</title>
-
+  <title>Параметры объекта</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background:#f5f5f5;
-      padding:12px;
+    :root{
+      --bg0:#0b0c10;
+      --bg1:#111219;
+      --card:#0f1116;
+      --line:rgba(255,255,255,.10);
+      --line2:rgba(255,255,255,.06);
+      --text:#f4f6fb;
+      --muted:rgba(244,246,251,.70);
+      --focus:rgba(255,255,255,.20);
+      --hover:rgba(255,255,255,.05);
+    }
+
+    *{ box-sizing:border-box; }
+    body{
       margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Helvetica Neue", sans-serif;
+      color:var(--text);
+      min-height:100vh;
+      background:
+        radial-gradient(1200px 600px at 25% 10%, rgba(255,255,255,.06), transparent 60%),
+        radial-gradient(900px 500px at 80% 70%, rgba(255,255,255,.05), transparent 55%),
+        linear-gradient(180deg, var(--bg1), var(--bg0) 55%, #07080c);
     }
 
-    .wrap {
-      max-width: 900px;
+    .wrap{
+      max-width: 980px;
       margin: 0 auto;
+      padding: 40px 18px 48px;
     }
 
-    table {
+    h1{
+      margin:0 0 22px 0;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 0.98;
+      font-size: clamp(34px, 5vw, 62px);
+    }
+
+    .subtitle{
+      margin: 0 0 26px 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+      max-width: 70ch;
+    }
+
+    .table-card{
+      background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+      border: 1px solid var(--line2);
+      border-radius: 18px;
+      overflow:hidden;
+      box-shadow:
+        0 18px 60px rgba(0,0,0,.50),
+        inset 0 1px 0 rgba(255,255,255,.06);
+    }
+
+    table{
       width:100%;
       border-collapse: collapse;
-      background:#fff;
     }
 
-    th, td {
-      border:1px solid #cfcfcf;
-      padding:10px 12px;
-      vertical-align: middle;
+    thead th{
+      font-size: 14px;
+      font-weight: 700;
+      color: rgba(255,255,255,.88);
+      padding: 18px 18px;
+      background: rgba(255,255,255,.02);
+      border-bottom: 1px solid var(--line);
+      text-transform: none;
     }
 
-    th {
-      background:#1f2937;
-      color:#fff;
-      font-weight:600;
-      text-align:left;
+    tbody td{
+      padding: 18px 18px;
+      border-bottom: 1px solid var(--line);
+      font-size: 15px;
+      color: rgba(255,255,255,.88);
     }
 
-    td:nth-child(1) {
-      width:70px;
-      text-align:center;
+    tbody tr:last-child td{
+      border-bottom: none;
     }
 
-    select, input {
-      width:100%;
-      padding:10px;
-      font-size:16px; /* важно для iOS */
-      border-radius:10px;
-      border:1px solid #cfcfcf;
-      box-sizing:border-box;
-      background:#fff;
+    /* Hover interaction like the reference */
+    tbody tr{
+      transition: background-color .18s ease, transform .18s ease;
+    }
+    tbody tr:hover{
+      background: var(--hover);
     }
 
-    .hint {
-      margin:12px 0;
-      color:#555;
-      font-size:13px;
+    /* 2-column layout widths like spreadsheet */
+    .col-metric{ width: 52%; }
+    .col-param{ width: 48%; }
+
+    /* Inputs styled to match dark table */
+    select, input{
+      width: 100%;
+      padding: 12px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.25);
+      color: var(--text);
+      outline: none;
+      font-size: 16px; /* prevents iOS zoom */
+      transition: border-color .15s ease, background .15s ease;
+    }
+    select:focus, input:focus{
+      border-color: rgba(255,255,255,.28);
+      background: rgba(0,0,0,.35);
+      box-shadow: 0 0 0 3px rgba(255,255,255,.06);
     }
 
-    .btns {
+    /* Remove default select arrow differences (best effort) */
+    select{
+      appearance: none;
+      background-image:
+        linear-gradient(45deg, transparent 50%, rgba(255,255,255,.70) 50%),
+        linear-gradient(135deg, rgba(255,255,255,.70) 50%, transparent 50%);
+      background-position:
+        calc(100% - 18px) 50%,
+        calc(100% - 12px) 50%;
+      background-size: 6px 6px, 6px 6px;
+      background-repeat: no-repeat;
+      padding-right: 34px;
+    }
+
+    .actions{
       display:flex;
-      gap:10px;
-      margin:14px 0;
-      flex-wrap:wrap;
+      gap: 10px;
+      align-items:center;
+      padding: 16px 18px;
+      border-top: 1px solid var(--line2);
+      background: rgba(255,255,255,.01);
+      flex-wrap: wrap;
+    }
+    button{
+      border: 1px solid rgba(255,255,255,.16);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 700;
+      transition: transform .12s ease, background .12s ease, border-color .12s ease;
+    }
+    button:hover{
+      background: rgba(255,255,255,.10);
+      border-color: rgba(255,255,255,.22);
+      transform: translateY(-1px);
+    }
+    button.primary{
+      background: rgba(255,255,255,.12);
     }
 
-    button {
-      padding:12px 16px;
-      border:0;
-      border-radius:12px;
-      font-size:16px;
-      cursor:pointer;
-      background:#2563eb;
-      color:#fff;
-      font-weight:600;
-      flex:1;
+    .status{
+      color: var(--muted);
+      font-size: 13px;
+      margin-left: auto;
+      min-width: 220px;
+      text-align: right;
     }
 
-    button.secondary {
-      background:#e5e7eb;
-      color:#111827;
+    /* Mobile tweaks */
+    @media (max-width: 720px){
+      .wrap{ padding-top: 28px; }
+      thead th{ padding: 14px 14px; }
+      tbody td{ padding: 14px 14px; }
+      .status{ margin-left: 0; text-align: left; width: 100%; }
     }
 
-    pre {
-      background:#0b1020;
-      color:#e5e7eb;
-      padding:12px;
-      border-radius:12px;
-      font-size:12px;
-      overflow:auto;
-    }
-
-    /* ---------- МОБИЛЬНАЯ АДАПТАЦИЯ ---------- */
-    @media (max-width: 640px) {
-
-      table, thead, tbody, th, tr {
-        display:block;
+    /* Very small screens: stack label + input nicely */
+    @media (max-width: 520px){
+      .col-metric, .col-param{ width: auto; }
+      table, thead, tbody, tr, th, td { display:block; }
+      thead{ display:none; }
+      tbody tr{
+        padding: 12px 12px;
+        border-bottom: 1px solid var(--line);
       }
-
-      thead {
-        display:none;
+      tbody tr:last-child{ border-bottom: none; }
+      tbody td{
+        border-bottom: none;
+        padding: 8px 0;
       }
-
-      tr {
-        border:1px solid #ddd;
-        border-radius:14px;
-        margin-bottom:14px;
-        padding:10px;
-      }
-
-      td {
-        border:none;
-        padding:6px 0;
-      }
-
-      td:nth-child(1)::before {
-        content: "№";
-        font-size:12px;
-        color:#666;
-        display:block;
-      }
-
-      td:nth-child(2)::before {
+      tbody td.metric::before{
         content: "Показатель";
-        font-size:12px;
-        color:#666;
         display:block;
+        color: var(--muted);
+        font-size: 12px;
+        margin-bottom: 6px;
       }
-
-      td:nth-child(3)::before {
-        content: "Значение";
-        font-size:12px;
-        color:#666;
+      tbody td.param::before{
+        content: "Параметр";
         display:block;
-      }
-
-      td:nth-child(1),
-      td:nth-child(2),
-      td:nth-child(3) {
-        width:100%;
-        text-align:left;
+        color: var(--muted);
+        font-size: 12px;
+        margin-bottom: 6px;
       }
     }
   </style>
 </head>
 
 <body>
-<div class="wrap">
+  <div class="wrap">
+    <h1>Basic Table<br/>+ Hover Interaction</h1>
+    <p class="subtitle">
+      Заполните параметры объекта оценки. Дизайн — тёмная минималистичная таблица с hover-подсветкой строк.
+      На мобильных таблица превращается в удобные “карточки”.
+    </p>
 
-  <table>
-    <thead>
-      <tr>
-        <th>№ п/п</th>
-        <th>Показатель</th>
-        <th>Объект-оценки</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>1</td>
-        <td>Тип спецтехники</td>
-        <td>
-          <select id="type">
-            <option value="">— выберите —</option>
-            <option>Комбайн</option>
-            <option>Трактор</option>
-            <option>Экскаватор</option>
-            <option>Погрузчик</option>
-          </select>
-        </td>
-      </tr>
+    <div class="table-card">
+      <table>
+        <thead>
+          <tr>
+            <th class="col-metric">Показатель</th>
+            <th class="col-param">Параметр</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="metric">Тип спецтехники</td>
+            <td class="param">
+              <select id="type">
+                <option value="">— выберите —</option>
+                <option>Трактор</option>
+                <option>Комбайн</option>
+                <option>Экскаватор</option>
+                <option>Погрузчик</option>
+              </select>
+            </td>
+          </tr>
+          <tr>
+            <td class="metric">Марка</td>
+            <td class="param">
+              <select id="brand">
+                <option value="">— выберите —</option>
+                <option>МТЗ</option>
+                <option>John Deere</option>
+                <option>New Holland</option>
+                <option>CLAAS</option>
+              </select>
+            </td>
+          </tr>
+          <tr>
+            <td class="metric">Модель</td>
+            <td class="param">
+              <select id="model">
+                <option value="">— выберите —</option>
+                <option>82</option>
+                <option>1221</option>
+                <option>CR 9.90</option>
+                <option>LEXION 7700</option>
+              </select>
+            </td>
+          </tr>
+          <tr>
+            <td class="metric">Год выпуска</td>
+            <td class="param">
+              <input id="year" type="number" inputmode="numeric" min="1950" max="2035" placeholder="например: 2016" />
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
-      <tr>
-        <td>2</td>
-        <td>Марка</td>
-        <td>
-          <select id="brand">
-            <option value="">— выберите —</option>
-            <option>New Holland</option>
-            <option>John Deere</option>
-            <option>CLAAS</option>
-            <option>Case IH</option>
-          </select>
-        </td>
-      </tr>
-
-      <tr>
-        <td>3</td>
-        <td>Модель</td>
-        <td>
-          <select id="model">
-            <option value="">— выберите —</option>
-            <option>CR 9.90</option>
-            <option>CR 8.90</option>
-            <option>LEXION 7700</option>
-          </select>
-        </td>
-      </tr>
-
-      <tr>
-        <td>4</td>
-        <td>Год выпуска</td>
-        <td>
-          <input type="number" placeholder="например: 2016" min="1950" max="2030">
-        </td>
-      </tr>
-    </tbody>
-  </table>
-
-  <div class="hint">
-    Форма адаптирована под смартфоны. Далее подключим отправку в Google Sheets.
+      <div class="actions">
+        <button class="primary" id="demoBtn">Показать JSON (проверка)</button>
+        <button id="resetBtn">Сброс</button>
+        <div class="status" id="status">Заполните поля и проверьте JSON</div>
+      </div>
+    </div>
   </div>
 
-  <div class="btns">
-    <button>Проверить</button>
-    <button class="secondary">Сброс</button>
-  </div>
+  <script>
+    const statusEl = document.getElementById('status');
 
-</div>
+    function setStatus(msg){ statusEl.textContent = msg; }
+
+    function getData(){
+      const type = document.getElementById('type').value || null;
+      const brand = document.getElementById('brand').value || null;
+      const model = document.getElementById('model').value || null;
+      const yearRaw = document.getElementById('year').value.trim();
+      const year = yearRaw ? Number(yearRaw) : null;
+
+      return {
+        type_special: type,
+        brand: brand,
+        model: model,
+        year: Number.isFinite(year) ? year : null
+      };
+    }
+
+    document.getElementById('demoBtn').addEventListener('click', () => {
+      const data = getData();
+      setStatus(JSON.stringify(data));
+      alert(JSON.stringify(data, null, 2));
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      document.getElementById('type').value = "";
+      document.getElementById('brand').value = "";
+      document.getElementById('model').value = "";
+      document.getElementById('year').value = "";
+      setStatus("Сброшено");
+    });
+  </script>
 </body>
 </html>
