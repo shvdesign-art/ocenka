@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Объект оценки</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#f5f5f5; padding:20px; }
+    .wrap { max-width: 900px; margin: 0 auto; }
+    table { width:100%; border-collapse: collapse; background:#fff; }
+    th, td { border:1px solid #cfcfcf; padding:10px 12px; }
+    th { background:#1f2937; color:#fff; font-weight:600; }
+    td:nth-child(1) { width:90px; text-align:center; }
+    td:nth-child(2) { width:300px; }
+    select, input {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #cfcfcf;
+      border-radius: 8px;
+      box-sizing: border-box;
+      font-size: 14px;
+      background:#fff;
+    }
+    .hint { margin: 12px 0; color:#555; font-size:13px; }
+    .btns { display:flex; gap:10px; align-items:center; margin: 12px 0; }
+    button {
+      padding:10px 14px; border:0; border-radius:10px; cursor:pointer;
+      background:#2563eb; color:#fff; font-weight:600;
+    }
+    button.secondary { background:#e5e7eb; color:#111827; }
+    pre {
+      background:#0b1020; color:#e5e7eb; padding:12px; border-radius:12px;
+      overflow:auto; font-size:12px;
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>№ п/п</th>
+        <th>Показатель</th>
+        <th>Объект-оценки</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td>Тип спецтехники</td>
+        <td>
+          <select id="typeSelect">
+            <option value="">— выберите —</option>
+            <option>Комбайн</option>
+            <option>Трактор</option>
+            <option>Погрузчик</option>
+            <option>Экскаватор</option>
+          </select>
+        </td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td>Марка</td>
+        <td>
+          <select id="brandSelect">
+            <option value="">— выберите —</option>
+            <option>New Holland</option>
+            <option>John Deere</option>
+            <option>CLAAS</option>
+            <option>Case IH</option>
+          </select>
+        </td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td>Модель</td>
+        <td>
+          <select id="modelSelect" disabled>
+            <option value="">— сначала выберите марку —</option>
+          </select>
+        </td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td>Год выпуска</td>
+        <td>
+          <input id="yearInput" type="number" inputmode="numeric" placeholder="например: 2016" min="1950" max="2030" />
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="hint">
+    Сейчас это просто форма на сайте. На следующем шаге подключим отправку в Google Sheets.
+  </div>
+
+  <div class="btns">
+    <button id="saveBtn">Показать JSON (проверка)</button>
+    <button class="secondary" id="resetBtn" type="button">Сбросить</button>
+  </div>
+
+  <pre id="out">{}</pre>
+</div>
+
+<script>
+  // Зависимость моделей от марки (можешь потом расширить списки)
+  const MODELS_BY_BRAND = {
+    "New Holland": ["CR 9.90", "CR 8.90", "CX 8.90"],
+    "John Deere": ["S780", "S790", "T670"],
+    "CLAAS": ["LEXION 7700", "LEXION 7600", "TRION 750"],
+    "Case IH": ["Axial-Flow 8250", "Axial-Flow 9250", "Axial-Flow 7250"]
+  };
+
+  const brandSelect = document.getElementById("brandSelect");
+  const modelSelect = document.getElementById("modelSelect");
+
+  function fillModels(brand) {
+    modelSelect.innerHTML = "";
+    if (!brand || !MODELS_BY_BRAND[brand]) {
+      modelSelect.disabled = true;
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = "— сначала выберите марку —";
+      modelSelect.appendChild(opt);
+      return;
+    }
+
+    modelSelect.disabled = false;
+    const first = document.createElement("option");
+    first.value = "";
+    first.textContent = "— выберите —";
+    modelSelect.appendChild(first);
+
+    MODELS_BY_BRAND[brand].forEach(m => {
+      const opt = document.createElement("option");
+      opt.value = m;
+      opt.textContent = m;
+      modelSelect.appendChild(opt);
+    });
+  }
+
+  brandSelect.addEventListener("change", (e) => {
+    fillModels(e.target.value);
+  });
+
+  function getData() {
+    const type = document.getElementById("typeSelect").value;
+    const brand = brandSelect.value;
+    const model = modelSelect.value;
+    const yearRaw = document.getElementById("yearInput").value.trim();
+
+    const year = yearRaw ? Number(yearRaw) : null;
+
+    return {
+      type_special: type || null,
+      brand: brand || null,
+      model: model || null,
+      year: Number.isFinite(year) ? year : null
+    };
+  }
+
+  document.getElementById("saveBtn").addEventListener("click", () => {
+    document.getElementById("out").textContent = JSON.stringify(getData(), null, 2);
+  });
+
+  document.getElementById("resetBtn").addEventListener("click", () => {
+    document.getElementById("typeSelect").value = "";
+    brandSelect.value = "";
+    fillModels("");
+    modelSelect.value = "";
+    document.getElementById("yearInput").value = "";
+    document.getElementById("out").textContent = "{}";
+  });
+
+  // инициализация
+  fillModels("");
+</script>
+</body>
+</html>
