@@ -73,6 +73,10 @@
       background-size:6px 6px, 6px 6px;
       background-repeat:no-repeat;
     }
+    select:disabled, input:disabled{
+      opacity:.55;
+      cursor:not-allowed;
+    }
 
     .actions{
       display:flex;gap:10px;align-items:center;flex-wrap:wrap;
@@ -87,10 +91,11 @@
       border-radius:12px;
       font-weight:700;
       cursor:pointer;
-      transition:transform .12s ease, background .12s ease, border-color .12s ease;
+      transition:transform .12s ease, background .12s ease, border-color .12s ease, opacity .12s ease;
     }
     button:hover{background:rgba(255,255,255,.10);border-color:rgba(255,255,255,.22);transform:translateY(-1px)}
     button.primary{background:rgba(255,255,255,.12)}
+    button:disabled{opacity:.45;cursor:not-allowed;transform:none}
     .status{margin-left:auto;color:var(--muted);font-size:13px;min-width:220px;text-align:right}
     .ok{color:#8ff0c8}
     .bad{color:#ffb4b4}
@@ -120,8 +125,7 @@
           <td class="label">Тип спецтехники</td>
           <td class="value">
             <select id="type">
-              <option value="">— выберите —</option>
-              <option>Трактор</option>
+              <option value="">Загрузка…</option>
             </select>
           </td>
         </tr>
@@ -129,9 +133,8 @@
         <tr>
           <td class="label">Марка</td>
           <td class="value">
-            <select id="brand">
-              <option value="">— выберите —</option>
-              <option>МТЗ (Беларус)</option>
+            <select id="brand" disabled>
+              <option value="">Сначала выберите тип</option>
             </select>
           </td>
         </tr>
@@ -139,9 +142,8 @@
         <tr>
           <td class="label">Модель</td>
           <td class="value">
-            <select id="model">
-              <option value="">— выберите —</option>
-              <option>82.1</option>
+            <select id="model" disabled>
+              <option value="">Сначала выберите марку</option>
             </select>
           </td>
         </tr>
@@ -149,56 +151,225 @@
         <tr>
           <td class="label">Год выпуска</td>
           <td class="value">
-            <input id="year" type="number" inputmode="numeric" min="1950" max="2035" placeholder="например: 2016">
+            <input id="year" type="number" inputmode="numeric" min="1950" max="2035" placeholder="например: 2016" disabled>
           </td>
         </tr>
 
         <tr>
           <td class="label">Местоположение</td>
           <td class="value">
-            <input id="location" type="text" placeholder="город, регион">
+            <input id="location" type="text" placeholder="город, регион" disabled>
           </td>
         </tr>
       </tbody>
     </table>
 
     <div class="actions">
-      <button class="primary" id="sendBtn">Отправить</button>
+      <button class="primary" id="sendBtn" disabled>Отправить</button>
       <button id="resetBtn" type="button">Сброс</button>
-      <div class="status" id="status">Готово к отправке</div>
+      <div class="status" id="status">Загружаю списки из Google Sheets…</div>
     </div>
   </div>
 </div>
 
 <script>
-  // ВСТАВЬ URL СВОЕГО MAKE WEBHOOK:
+  // 1) URL Apps Script Web App (/exec), который отдаёт {rows:[{type,brand,model}...]} через JSONP
+  const GOOGLE_DICT_URL = "https://script.google.com/macros/s/AKfycbwzTz6k_hMbn8H161OZJX5cs5j-8vFN2FhHUsiwkF-5U29-do5iABNTfUkQKGnmeAcReA/exec";
+
+  // 2) URL Make webhook
   const MAKE_WEBHOOK_URL = "https://hook.eu1.make.com/g5xtk9ovxlzspdemrwr7ic2euyarblgi";
 
-  const statusEl = document.getElementById('status');
-  const sendBtn = document.getElementById('sendBtn');
+  const els = {
+    type: document.getElementById('type'),
+    brand: document.getElementById('brand'),
+    model: document.getElementById('model'),
+    year: document.getElementById('year'),
+    location: document.getElementById('location'),
+    sendBtn: document.getElementById('sendBtn'),
+    resetBtn: document.getElementById('resetBtn'),
+    status: document.getElementById('status'),
+  };
 
   function setStatus(msg, kind){
-    statusEl.textContent = msg;
-    statusEl.classList.remove('ok','bad');
-    if (kind) statusEl.classList.add(kind);
+    els.status.textContent = msg;
+    els.status.classList.remove('ok','bad');
+    if (kind) els.status.classList.add(kind);
   }
 
   function getSid(){
     return new URLSearchParams(window.location.search).get('sid');
   }
 
+  // ====== Построение справочника из rows ======
+  let dict = {
+    types: [],
+    brandsByType: new Map(),          // type -> Set(brands)
+    modelsByTypeBrand: new Map()      // `${type}||${brand}` -> Set(models)
+  };
+
+  function buildDict(rows){
+    const typesSet = new Set();
+
+    const brandsByType = new Map();
+    const modelsByTypeBrand = new Map();
+
+    for (const r of rows){
+      const type = String(r.type ?? "").trim();
+      const brand = String(r.brand ?? "").trim();
+      const model = String(r.model ?? "").trim();
+      if (!type || !brand || !model) continue;
+
+      typesSet.add(type);
+
+      if (!brandsByType.has(type)) brandsByType.set(type, new Set());
+      brandsByType.get(type).add(brand);
+
+      const key = `${type}||${brand}`;
+      if (!modelsByTypeBrand.has(key)) modelsByTypeBrand.set(key, new Set());
+      modelsByTypeBrand.get(key).add(model);
+    }
+
+    dict = {
+      types: Array.from(typesSet).sort(),
+      brandsByType,
+      modelsByTypeBrand
+    };
+  }
+
+  // ====== UI helpers ======
+  function setOptions(selectEl, options, placeholder){
+    selectEl.innerHTML = "";
+    const first = document.createElement("option");
+    first.value = "";
+    first.textContent = placeholder;
+    selectEl.appendChild(first);
+
+    for (const opt of options){
+      const o = document.createElement("option");
+      o.value = opt;
+      o.textContent = opt;
+      selectEl.appendChild(o);
+    }
+  }
+
+  function resetDownstream(from){
+    // from: "type" | "brand" | "model"
+    if (from === "type"){
+      els.brand.value = "";
+      els.model.value = "";
+      els.year.value = "";
+      els.location.value = "";
+      els.brand.disabled = true;
+      els.model.disabled = true;
+      els.year.disabled = true;
+      els.location.disabled = true;
+      setOptions(els.brand, [], "Сначала выберите тип");
+      setOptions(els.model, [], "Сначала выберите марку");
+    }
+    if (from === "brand"){
+      els.model.value = "";
+      els.year.value = "";
+      els.location.value = "";
+      els.model.disabled = true;
+      els.year.disabled = true;
+      els.location.disabled = true;
+      setOptions(els.model, [], "Сначала выберите марку");
+    }
+    if (from === "model"){
+      els.year.value = "";
+      els.location.value = "";
+      els.year.disabled = true;
+      els.location.disabled = true;
+    }
+    updateSendEnabled();
+  }
+
+  function updateSendEnabled(){
+    const p = getPayload();
+    const ok = !validate(p);
+    els.sendBtn.disabled = !ok;
+  }
+
+  // ====== Последовательная логика ======
+  els.type.addEventListener("change", () => {
+    resetDownstream("type");
+
+    const type = els.type.value;
+    if (!type) {
+      setStatus("Выберите тип спецтехники");
+      return;
+    }
+
+    const brandsSet = dict.brandsByType.get(type);
+    const brands = brandsSet ? Array.from(brandsSet).sort() : [];
+    setOptions(els.brand, brands, "— выберите —");
+    els.brand.disabled = false;
+
+    setStatus("Выберите марку");
+    updateSendEnabled();
+  });
+
+  els.brand.addEventListener("change", () => {
+    resetDownstream("brand");
+
+    const type = els.type.value;
+    const brand = els.brand.value;
+    if (!type || !brand){
+      setStatus("Выберите марку");
+      return;
+    }
+
+    const key = `${type}||${brand}`;
+    const modelsSet = dict.modelsByTypeBrand.get(key);
+    const models = modelsSet ? Array.from(modelsSet).sort() : [];
+    setOptions(els.model, models, "— выберите —");
+    els.model.disabled = false;
+
+    setStatus("Выберите модель");
+    updateSendEnabled();
+  });
+
+  els.model.addEventListener("change", () => {
+    resetDownstream("model");
+
+    if (!els.model.value){
+      setStatus("Выберите модель");
+      return;
+    }
+
+    els.year.disabled = false;
+    setStatus("Укажите год выпуска");
+    updateSendEnabled();
+  });
+
+  els.year.addEventListener("input", () => {
+    const year = Number(els.year.value);
+    if (Number.isFinite(year) && year >= 1950 && year <= 2035){
+      els.location.disabled = false;
+      setStatus("Укажите местоположение");
+    } else {
+      els.location.disabled = true;
+    }
+    updateSendEnabled();
+  });
+
+  els.location.addEventListener("input", () => {
+    updateSendEnabled();
+  });
+
+  // ====== Отправка ======
   function getPayload(){
-    const yearRaw = document.getElementById('year').value.trim();
+    const yearRaw = els.year.value.trim();
     const year = yearRaw ? Number(yearRaw) : null;
 
     return {
       sid: getSid(),
       sentAt: new Date().toISOString(),
-      type_special: document.getElementById('type').value || null,
-      brand: document.getElementById('brand').value || null,
-      model: document.getElementById('model').value || null,
+      type_special: els.type.value || null,
+      brand: els.brand.value || null,
+      model: els.model.value || null,
       year: Number.isFinite(year) ? year : null,
-      location: document.getElementById('location').value.trim() || null
+      location: els.location.value.trim() || null
     };
   }
 
@@ -213,18 +384,20 @@
     return null;
   }
 
-  document.getElementById('resetBtn').addEventListener('click', () => {
-    document.getElementById('type').value = "";
-    document.getElementById('brand').value = "";
-    document.getElementById('model').value = "";
-    document.getElementById('year').value = "";
-    document.getElementById('location').value = "";
+  els.resetBtn.addEventListener("click", () => {
+    els.type.value = "";
+    resetDownstream("type");
+    setOptions(els.brand, [], "Сначала выберите тип");
+    setOptions(els.model, [], "Сначала выберите марку");
+    els.year.disabled = true;
+    els.location.disabled = true;
+    els.sendBtn.disabled = true;
     setStatus("Сброшено");
   });
 
-  sendBtn.addEventListener('click', async () => {
-    if (!MAKE_WEBHOOK_URL || MAKE_WEBHOOK_URL.includes("PASTE_YOUR_WEBHOOK_HERE")) {
-      setStatus("Вставь MAKE_WEBHOOK_URL в коде", "bad");
+  els.sendBtn.addEventListener("click", async () => {
+    if (!MAKE_WEBHOOK_URL || MAKE_WEBHOOK_URL.includes("PASTE_")) {
+      setStatus("Вставьте MAKE_WEBHOOK_URL в коде", "bad");
       return;
     }
 
@@ -233,7 +406,7 @@
     if (err) { setStatus(err, "bad"); return; }
 
     try{
-      sendBtn.disabled = true;
+      els.sendBtn.disabled = true;
       setStatus("Отправляю…");
 
       const res = await fetch(MAKE_WEBHOOK_URL, {
@@ -250,12 +423,10 @@
 
       setStatus("Отправлено ✅", "ok");
 
-      // Закрыть окно на мобильной версии (если браузер разрешит).
+      // Закрыть окно на мобильной версии (если браузер разрешит)
       const isMobile = window.matchMedia("(max-width: 520px)").matches;
       if (isMobile) {
         window.close();
-
-        // Если закрыть нельзя — покажем экран "Готово"
         setTimeout(() => {
           document.body.innerHTML = `
             <div style="
@@ -279,10 +450,80 @@
     } catch(e){
       setStatus("Ошибка сети: " + (e?.message || e), "bad");
     } finally{
-      sendBtn.disabled = false;
+      // если остались на странице (десктоп) — разрешим повторно
+      els.sendBtn.disabled = false;
+      updateSendEnabled();
     }
   });
+
+  // ====== Загрузка справочника из Google Sheets через JSONP ======
+  function loadDictJsonp(){
+    return new Promise((resolve, reject) => {
+      if (!GOOGLE_DICT_URL || GOOGLE_DICT_URL.includes("PASTE_")) {
+        reject(new Error("Вставьте GOOGLE_DICT_URL (Apps Script /exec)"));
+        return;
+      }
+
+      const cbName = "cb_" + Math.random().toString(16).slice(2);
+      const script = document.createElement("script");
+      const url = new URL(GOOGLE_DICT_URL);
+      url.searchParams.set("callback", cbName);
+      script.src = url.toString();
+
+      const timeout = setTimeout(() => {
+        cleanup();
+        reject(new Error("Таймаут загрузки справочника"));
+      }, 12000);
+
+      function cleanup(){
+        clearTimeout(timeout);
+        delete window[cbName];
+        script.remove();
+      }
+
+      window[cbName] = (data) => {
+        cleanup();
+        resolve(data);
+      };
+
+      script.onerror = () => {
+        cleanup();
+        reject(new Error("Не удалось загрузить справочник (script error)"));
+      };
+
+      document.head.appendChild(script);
+    });
+  }
+
+  async function init(){
+    try{
+      setStatus("Загружаю списки из Google Sheets…");
+      els.type.disabled = true;
+
+      const data = await loadDictJsonp();
+      if (!data || !Array.isArray(data.rows)) throw new Error("Неверный формат данных");
+
+      buildDict(data.rows);
+
+      if (dict.types.length === 0) throw new Error("Справочник пустой");
+
+      setOptions(els.type, dict.types, "— выберите —");
+      els.type.disabled = false;
+
+      // старт: всё кроме type заблокировано
+      resetDownstream("type");
+      setStatus("Выберите тип спецтехники");
+    } catch (e){
+      setStatus("Ошибка справочника: " + (e?.message || e), "bad");
+      // чтобы не было "Загрузка…"
+      setOptions(els.type, [], "Ошибка загрузки");
+      els.type.disabled = true;
+    } finally{
+      updateSendEnabled();
+    }
+  }
+
+  init();
 </script>
 </body>
 </html>
-
