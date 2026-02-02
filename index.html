@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Параметры объекта</title>
+
   <style>
     :root{
       --bg0:#0b0c10; --bg1:#111219;
@@ -51,7 +52,7 @@
     select,input{
       width:100%;
       padding:12px;
-      font-size:16px; /* iOS no-zoom */
+      font-size:16px;
       border-radius:12px;
       border:1px solid rgba(255,255,255,.14);
       background:rgba(0,0,0,.25);
@@ -91,23 +92,16 @@
       border-radius:12px;
       font-weight:700;
       cursor:pointer;
-      transition:transform .12s ease, background .12s ease, border-color .12s ease, opacity .12s ease;
     }
-    button:hover{background:rgba(255,255,255,.10);border-color:rgba(255,255,255,.22);transform:translateY(-1px)}
     button.primary{background:rgba(255,255,255,.12)}
-    button:disabled{opacity:.45;cursor:not-allowed;transform:none}
+    button:disabled{opacity:.45;cursor:not-allowed}
     .status{margin-left:auto;color:var(--muted);font-size:13px;min-width:220px;text-align:right}
     .ok{color:#8ff0c8}
     .bad{color:#ffb4b4}
 
-    @media (max-width:720px){
-      .status{margin-left:0;text-align:left;width:100%}
-      tbody td{padding:14px}
-    }
     @media (max-width:520px){
       table, tbody, tr, td{display:block}
       tbody tr{padding:12px;border-bottom:1px solid var(--line)}
-      tbody tr:last-child{border-bottom:none}
       tbody td{border:none;padding:8px 0}
       .label,.value{width:100%}
     }
@@ -151,14 +145,7 @@
         <tr>
           <td class="label">Год выпуска</td>
           <td class="value">
-            <input id="year" type="number" inputmode="numeric" min="1950" max="2035" placeholder="например: 2016" disabled>
-          </td>
-        </tr>
-
-        <tr>
-          <td class="label">Местоположение</td>
-          <td class="value">
-            <input id="location" type="text" placeholder="город, регион" disabled>
+            <input id="year" type="number" min="1950" max="2035" placeholder="например: 2016" disabled>
           </td>
         </tr>
       </tbody>
@@ -167,363 +154,160 @@
     <div class="actions">
       <button class="primary" id="sendBtn" disabled>Отправить</button>
       <button id="resetBtn" type="button">Сброс</button>
-      <div class="status" id="status">Загружаю списки из Google Sheets…</div>
+      <div class="status" id="status">Загрузка справочника…</div>
     </div>
   </div>
 </div>
 
 <script>
-  // 1) URL Apps Script Web App (/exec), который отдаёт {rows:[{type,brand,model}...]} через JSONP
-  const GOOGLE_DICT_URL = "https://script.google.com/macros/s/AKfycbwzTz6k_hMbn8H161OZJX5cs5j-8vFN2FhHUsiwkF-5U29-do5iABNTfUkQKGnmeAcReA/exec";
+  const GOOGLE_DICT_URL = "PASTE_GOOGLE_APPS_SCRIPT_URL_HERE";
+  const MAKE_WEBHOOK_URL = "PASTE_MAKE_WEBHOOK_URL_HERE";
 
-  // 2) URL Make webhook
-  const MAKE_WEBHOOK_URL = "https://hook.eu1.make.com/g5xtk9ovxlzspdemrwr7ic2euyarblgi";
-
-  const els = {
-    type: document.getElementById('type'),
-    brand: document.getElementById('brand'),
-    model: document.getElementById('model'),
-    year: document.getElementById('year'),
-    location: document.getElementById('location'),
-    sendBtn: document.getElementById('sendBtn'),
-    resetBtn: document.getElementById('resetBtn'),
-    status: document.getElementById('status'),
+  const el = {
+    type: type,
+    brand: brand,
+    model: model,
+    year: year,
+    send: sendBtn,
+    reset: resetBtn,
+    status
   };
 
   function setStatus(msg, kind){
-    els.status.textContent = msg;
-    els.status.classList.remove('ok','bad');
-    if (kind) els.status.classList.add(kind);
+    el.status.textContent = msg;
+    el.status.className = "status " + (kind || "");
   }
 
   function getSid(){
-    return new URLSearchParams(window.location.search).get('sid');
+    return new URLSearchParams(location.search).get("sid");
   }
 
-  // ====== Построение справочника из rows ======
-  let dict = {
-    types: [],
-    brandsByType: new Map(),          // type -> Set(brands)
-    modelsByTypeBrand: new Map()      // `${type}||${brand}` -> Set(models)
-  };
+  let dict = { types:[], brands:new Map(), models:new Map() };
 
   function buildDict(rows){
-    const typesSet = new Set();
-
-    const brandsByType = new Map();
-    const modelsByTypeBrand = new Map();
-
-    for (const r of rows){
-      const type = String(r.type ?? "").trim();
-      const brand = String(r.brand ?? "").trim();
-      const model = String(r.model ?? "").trim();
-      if (!type || !brand || !model) continue;
-
-      typesSet.add(type);
-
-      if (!brandsByType.has(type)) brandsByType.set(type, new Set());
-      brandsByType.get(type).add(brand);
-
-      const key = `${type}||${brand}`;
-      if (!modelsByTypeBrand.has(key)) modelsByTypeBrand.set(key, new Set());
-      modelsByTypeBrand.get(key).add(model);
-    }
-
-    dict = {
-      types: Array.from(typesSet).sort(),
-      brandsByType,
-      modelsByTypeBrand
-    };
+    const t = new Set();
+    const b = new Map();
+    const m = new Map();
+    rows.forEach(r=>{
+      const type=r.type?.trim(), brand=r.brand?.trim(), model=r.model?.trim();
+      if(!type||!brand||!model) return;
+      t.add(type);
+      if(!b.has(type)) b.set(type,new Set());
+      b.get(type).add(brand);
+      const k=`${type}||${brand}`;
+      if(!m.has(k)) m.set(k,new Set());
+      m.get(k).add(model);
+    });
+    dict.types=[...t];
+    dict.brands=b;
+    dict.models=m;
   }
 
-  // ====== UI helpers ======
-  function setOptions(selectEl, options, placeholder){
-    selectEl.innerHTML = "";
-    const first = document.createElement("option");
-    first.value = "";
-    first.textContent = placeholder;
-    selectEl.appendChild(first);
-
-    for (const opt of options){
-      const o = document.createElement("option");
-      o.value = opt;
-      o.textContent = opt;
-      selectEl.appendChild(o);
-    }
+  function setOptions(sel, arr, ph){
+    sel.innerHTML="";
+    sel.append(new Option(ph,""));
+    arr.forEach(v=>sel.append(new Option(v,v)));
   }
 
-  function resetDownstream(from){
-    // from: "type" | "brand" | "model"
-    if (from === "type"){
-      els.brand.value = "";
-      els.model.value = "";
-      els.year.value = "";
-      els.location.value = "";
-      els.brand.disabled = true;
-      els.model.disabled = true;
-      els.year.disabled = true;
-      els.location.disabled = true;
-      setOptions(els.brand, [], "Сначала выберите тип");
-      setOptions(els.model, [], "Сначала выберите марку");
-    }
-    if (from === "brand"){
-      els.model.value = "";
-      els.year.value = "";
-      els.location.value = "";
-      els.model.disabled = true;
-      els.year.disabled = true;
-      els.location.disabled = true;
-      setOptions(els.model, [], "Сначала выберите марку");
-    }
-    if (from === "model"){
-      els.year.value = "";
-      els.location.value = "";
-      els.year.disabled = true;
-      els.location.disabled = true;
-    }
-    updateSendEnabled();
+  function resetFrom(lvl){
+    if(lvl<2){ el.brand.disabled=true; setOptions(el.brand,[],"Сначала выберите тип"); }
+    if(lvl<3){ el.model.disabled=true; setOptions(el.model,[],"Сначала выберите марку"); }
+    if(lvl<4){ el.year.disabled=true; el.year.value=""; }
+    el.send.disabled=true;
   }
 
-  function updateSendEnabled(){
-    const p = getPayload();
-    const ok = !validate(p);
-    els.sendBtn.disabled = !ok;
-  }
-
-  // ====== Последовательная логика ======
-  els.type.addEventListener("change", () => {
-    resetDownstream("type");
-
-    const type = els.type.value;
-    if (!type) {
-      setStatus("Выберите тип спецтехники");
-      return;
-    }
-
-    const brandsSet = dict.brandsByType.get(type);
-    const brands = brandsSet ? Array.from(brandsSet).sort() : [];
-    setOptions(els.brand, brands, "— выберите —");
-    els.brand.disabled = false;
-
+  type.onchange=()=>{
+    resetFrom(1);
+    const t=el.type.value;
+    if(!t) return setStatus("Выберите тип");
+    setOptions(el.brand,[...dict.brands.get(t)||[]],"— выберите —");
+    el.brand.disabled=false;
     setStatus("Выберите марку");
-    updateSendEnabled();
-  });
+  };
 
-  els.brand.addEventListener("change", () => {
-    resetDownstream("brand");
-
-    const type = els.type.value;
-    const brand = els.brand.value;
-    if (!type || !brand){
-      setStatus("Выберите марку");
-      return;
-    }
-
-    const key = `${type}||${brand}`;
-    const modelsSet = dict.modelsByTypeBrand.get(key);
-    const models = modelsSet ? Array.from(modelsSet).sort() : [];
-    setOptions(els.model, models, "— выберите —");
-    els.model.disabled = false;
-
+  brand.onchange=()=>{
+    resetFrom(2);
+    const t=el.type.value, b=el.brand.value;
+    if(!b) return;
+    setOptions(el.model,[...dict.models.get(`${t}||${b}`)||[]],"— выберите —");
+    el.model.disabled=false;
     setStatus("Выберите модель");
-    updateSendEnabled();
-  });
+  };
 
-  els.model.addEventListener("change", () => {
-    resetDownstream("model");
-
-    if (!els.model.value){
-      setStatus("Выберите модель");
-      return;
-    }
-
-    els.year.disabled = false;
+  model.onchange=()=>{
+    resetFrom(3);
+    if(!el.model.value) return;
+    el.year.disabled=false;
     setStatus("Укажите год выпуска");
-    updateSendEnabled();
-  });
+  };
 
-  els.year.addEventListener("input", () => {
-    const year = Number(els.year.value);
-    if (Number.isFinite(year) && year >= 1950 && year <= 2035){
-      els.location.disabled = false;
-      setStatus("Укажите местоположение");
+  year.oninput=()=>{
+    const y=+el.year.value;
+    if(y>=1950&&y<=2035){
+      el.send.disabled=false;
+      setStatus("Можно отправлять");
     } else {
-      els.location.disabled = true;
+      el.send.disabled=true;
     }
-    updateSendEnabled();
-  });
+  };
 
-  els.location.addEventListener("input", () => {
-    updateSendEnabled();
-  });
-
-  // ====== Отправка ======
-  function getPayload(){
-    const yearRaw = els.year.value.trim();
-    const year = yearRaw ? Number(yearRaw) : null;
-
-    return {
-      sid: getSid(),
-      sentAt: new Date().toISOString(),
-      type_special: els.type.value || null,
-      brand: els.brand.value || null,
-      model: els.model.value || null,
-      year: Number.isFinite(year) ? year : null,
-      location: els.location.value.trim() || null
-    };
-  }
-
-  function validate(p){
-    if (!p.sid) return "Ошибка: нет sid в ссылке (нужно .../?sid=XXXX)";
-    if (!p.type_special) return "Выберите тип спецтехники";
-    if (!p.brand) return "Выберите марку";
-    if (!p.model) return "Выберите модель";
-    if (!p.year) return "Укажите год выпуска";
-    if (p.year < 1950 || p.year > 2035) return "Год выпуска вне диапазона";
-    if (!p.location) return "Укажите местоположение";
-    return null;
-  }
-
-  els.resetBtn.addEventListener("click", () => {
-    els.type.value = "";
-    resetDownstream("type");
-    setOptions(els.brand, [], "Сначала выберите тип");
-    setOptions(els.model, [], "Сначала выберите марку");
-    els.year.disabled = true;
-    els.location.disabled = true;
-    els.sendBtn.disabled = true;
+  resetBtn.onclick=()=>{
+    type.value="";
+    resetFrom(0);
     setStatus("Сброшено");
-  });
+  };
 
-  els.sendBtn.addEventListener("click", async () => {
-    if (!MAKE_WEBHOOK_URL || MAKE_WEBHOOK_URL.includes("PASTE_")) {
-      setStatus("Вставьте MAKE_WEBHOOK_URL в коде", "bad");
-      return;
-    }
-
-    const payload = getPayload();
-    const err = validate(payload);
-    if (err) { setStatus(err, "bad"); return; }
+  sendBtn.onclick=async()=>{
+    const payload={
+      sid:getSid(),
+      sentAt:new Date().toISOString(),
+      type_special:el.type.value,
+      brand:el.brand.value,
+      model:el.model.value,
+      year:+el.year.value
+    };
 
     try{
-      els.sendBtn.disabled = true;
       setStatus("Отправляю…");
-
-      const res = await fetch(MAKE_WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+      const r=await fetch(MAKE_WEBHOOK_URL,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify(payload)
       });
+      if(!r.ok) throw new Error(r.status);
+      setStatus("Отправлено ✅","ok");
 
-      const txt = await res.text().catch(()=> "");
-      if (!res.ok) {
-        setStatus("Ошибка Make: " + res.status + " " + txt, "bad");
-        return;
-      }
-
-      setStatus("Отправлено ✅", "ok");
-
-      // Закрыть окно на мобильной версии (если браузер разрешит)
-      const isMobile = window.matchMedia("(max-width: 520px)").matches;
-      if (isMobile) {
+      if(matchMedia("(max-width:520px)").matches){
         window.close();
-        setTimeout(() => {
-          document.body.innerHTML = `
-            <div style="
-              min-height:100vh; display:flex; align-items:center; justify-content:center;
-              padding:24px; text-align:center; color:#f4f6fb;
-              font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-              background: linear-gradient(180deg, #111219, #0b0c10 55%, #07080c);
-            ">
-              <div style="max-width:520px;">
-                <div style="font-size:28px; font-weight:800; letter-spacing:-0.02em; margin-bottom:10px;">
-                  Готово ✅
-                </div>
-                <div style="opacity:.75; font-size:14px; line-height:1.5;">
-                  Данные отправлены. Теперь можно закрыть это окно и вернуться в Telegram.
-                </div>
-              </div>
-            </div>
-          `;
-        }, 300);
+        setTimeout(()=>document.body.innerHTML="<h2 style='color:white;text-align:center'>Готово ✅<br>Вернитесь в Telegram</h2>",300);
       }
-    } catch(e){
-      setStatus("Ошибка сети: " + (e?.message || e), "bad");
-    } finally{
-      // если остались на странице (десктоп) — разрешим повторно
-      els.sendBtn.disabled = false;
-      updateSendEnabled();
+    }catch(e){
+      setStatus("Ошибка отправки","bad");
     }
-  });
+  };
 
-  // ====== Загрузка справочника из Google Sheets через JSONP ======
-  function loadDictJsonp(){
-    return new Promise((resolve, reject) => {
-      if (!GOOGLE_DICT_URL || GOOGLE_DICT_URL.includes("PASTE_")) {
-        reject(new Error("Вставьте GOOGLE_DICT_URL (Apps Script /exec)"));
-        return;
-      }
-
-      const cbName = "cb_" + Math.random().toString(16).slice(2);
-      const script = document.createElement("script");
-      const url = new URL(GOOGLE_DICT_URL);
-      url.searchParams.set("callback", cbName);
-      script.src = url.toString();
-
-      const timeout = setTimeout(() => {
-        cleanup();
-        reject(new Error("Таймаут загрузки справочника"));
-      }, 12000);
-
-      function cleanup(){
-        clearTimeout(timeout);
-        delete window[cbName];
-        script.remove();
-      }
-
-      window[cbName] = (data) => {
-        cleanup();
-        resolve(data);
-      };
-
-      script.onerror = () => {
-        cleanup();
-        reject(new Error("Не удалось загрузить справочник (script error)"));
-      };
-
-      document.head.appendChild(script);
+  function loadJsonp(){
+    return new Promise((res,rej)=>{
+      const cb="cb"+Math.random().toString(16).slice(2);
+      window[cb]=d=>{ delete window[cb]; s.remove(); res(d); };
+      const s=document.createElement("script");
+      s.src=GOOGLE_DICT_URL+"?callback="+cb;
+      s.onerror=()=>rej();
+      document.head.appendChild(s);
     });
   }
 
-  async function init(){
+  (async()=>{
     try{
-      setStatus("Загружаю списки из Google Sheets…");
-      els.type.disabled = true;
-
-      const data = await loadDictJsonp();
-      if (!data || !Array.isArray(data.rows)) throw new Error("Неверный формат данных");
-
-      buildDict(data.rows);
-
-      if (dict.types.length === 0) throw new Error("Справочник пустой");
-
-      setOptions(els.type, dict.types, "— выберите —");
-      els.type.disabled = false;
-
-      // старт: всё кроме type заблокировано
-      resetDownstream("type");
-      setStatus("Выберите тип спецтехники");
-    } catch (e){
-      setStatus("Ошибка справочника: " + (e?.message || e), "bad");
-      // чтобы не было "Загрузка…"
-      setOptions(els.type, [], "Ошибка загрузки");
-      els.type.disabled = true;
-    } finally{
-      updateSendEnabled();
+      const d=await loadJsonp();
+      buildDict(d.rows||[]);
+      setOptions(el.type,dict.types,"— выберите —");
+      resetFrom(0);
+      setStatus("Выберите тип");
+    }catch{
+      setStatus("Ошибка загрузки справочника","bad");
     }
-  }
-
-  init();
+  })();
 </script>
 </body>
 </html>
