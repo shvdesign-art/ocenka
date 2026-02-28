@@ -156,27 +156,28 @@ body {
 .result-box {
   background: var(--white);
   border: 2px solid var(--black);
-  padding: 24px 28px;
+  padding: 20px 28px;
   margin-bottom: 28px;
-  display: flex; gap: 48px; align-items: flex-end; flex-wrap: wrap;
+  display: flex; gap: 32px; align-items: center; flex-wrap: wrap;
 }
 .result-market-label {
-  font-size: 9px;
-  letter-spacing: 3px;
-  text-transform: uppercase;
+  font-size: 14px;
+  letter-spacing: 0px;
+  text-transform: none;
   color: var(--gray);
-  font-weight: 700;
-  margin-bottom: 6px;
+  font-weight: 400;
+  margin-bottom: 0;
+  white-space: nowrap;
 }
 .result-market-value {
-  font-size: 48px;
+  font-size: 20px;
   font-weight: 900;
   color: var(--black);
-  letter-spacing: -2px;
+  letter-spacing: 0;
   line-height: 1;
 }
-.result-meta { display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-end; }
-.result-meta-item { font-size: 11px; color: var(--gray); font-weight: 400; }
+.result-meta { display: flex; gap: 28px; flex-wrap: wrap; align-items: center; }
+.result-meta-item { font-size: 14px; color: var(--gray); font-weight: 400; }
 .result-meta-item span { color: var(--black); font-weight: 700; }
 
 /* STATS */
@@ -382,14 +383,7 @@ body {
       <label>Год выпуска</label>
       <input type="number" id="year" value="2020" min="1990" max="2026" />
     </div>
-    <div class="field">
-      <label>Мощность двигателя, л.с.</label>
-      <input type="number" id="power" id="power" readonly placeholder="авто из справочника" />
-    </div>
-    <div class="field">
-      <label>Регион производства</label>
-      <input type="text" id="region" readonly />
-    </div>
+    <div style="display:none"><input type="number" id="power" readonly /><input type="text" id="region" readonly /></div>
 
     <div class="section-label">Настройка модели</div>
     
@@ -506,7 +500,11 @@ function calcWear(year, serviceLife) {
 
 function fmtMoney(v) {
   if (!v && v !== 0) return '—';
-  return new Intl.NumberFormat('ru-RU').format(Math.round(v)) + ' ₽';
+  return new Intl.NumberFormat('ru-RU').format(Math.round(v)) + ' руб.';
+}
+function fmtMoneyN(v) {
+  if (!v && v !== 0) return '—';
+  return new Intl.NumberFormat('ru-RU').format(Math.round(v));
 }
 function fmtPct(v) {
   if (v === '' || v === null || v === undefined) return '—';
@@ -630,12 +628,7 @@ function calculate() {
   let html = '';
 
   // Stats row
-  html += `<div class="stat-row">
-    <div class="stat-card"><div class="s-label">Аналогов в базе</div><div class="s-val">${pool.length}</div></div>
-    <div class="stat-card"><div class="s-label">Отобрано аналогов</div><div class="s-val">${top5.length}</div></div>
-    <div class="stat-card"><div class="s-label">Износ объекта</div><div class="s-val">${objWear}%</div></div>
-    <div class="stat-card"><div class="s-label">Шаг поиска</div><div class="s-val">Шаг ${usedStep}</div></div>
-  </div>`;
+
 
   if (top5.length === 0) {
     html += `<div class="warn-box">⚠ В базе есть ${pool.length} аналогов, но ни один не проходит фильтр отклонения (<20%). Попробуйте расширить параметры.</div>`;
@@ -649,9 +642,8 @@ function calculate() {
     <div class="result-market-value">${fmtMoney(marketValue)}</div>
     <div class="result-meta">
       <div class="result-meta-item">Разброс макс/мин: <span>${mmRatio !== null ? (mmRatio * 100).toFixed(1) + '%' : '—'}</span></div>
-      <div class="result-meta-item">Объект: <span>${brand} ${model}, ${year} г.</span></div>
-      <div class="result-meta-item">Мощность: <span>${power} л.с.</span></div>
-      <div class="result-meta-item">Регион: <span>${region}</span></div>
+      <div class="result-meta-item">Аналогов в базе: <span>${pool.length}</span></div>
+      <div class="result-meta-item">Отобрано аналогов: <span>${top5.length}</span></div>
     </div>
   </div>`;
 
@@ -681,7 +673,7 @@ function calculate() {
   html += '</div>';
 
   // Corrections table
-  html += `<div class="table-label" style="margin-top:28px;margin-bottom:0">Таблица корректировок</div>`;
+  html += `<div class="table-label" style="margin-top:28px;margin-bottom:0">Расчет стоимости</div>`;
   html += `<table class="corrections-table"><thead><tr>
     <th>Показатель</th>
     <th>Объект</th>
@@ -694,13 +686,14 @@ function calculate() {
     { label: 'Год выпуска', key: 'Год выпуска', objVal: year },
     { label: 'Мощность, л.с.', key: 'Мощность двигателя', objVal: power },
     { label: 'Местоположение', key: 'Местоположение', objVal: '—' },
-    { label: 'Цена предложения, ₽', key: 'Цена продажи', objVal: '—', fmt: fmtMoney },
+    { label: 'Цена предложения, руб.', key: 'Цена продажи', objVal: '—', fmt: fmtMoneyN },
     { label: 'Нормативный срок службы', key: null, objVal: serviceLife + ' лет', fn: c => serviceLife + ' лет' },
     { label: 'Износ, %', key: null, objVal: objWear + '%', fn: c => c.aWear + '%' },
     { label: 'Кор. на торг', key: null, objVal: '—', fn: c => fmtNum(c.korTorg) },
     { label: 'Кор. на износ', key: null, objVal: '—', fn: c => fmtNum(c.korWear) },
     { label: 'Кор. параметрическая', key: null, objVal: '—', fn: c => fmtNum(c.korParam) },
-    { label: 'Скорр. стоимость, ₽', key: null, objVal: '—', fn: c => fmtMoney(c.adjPrice), highlight: true },
+    { label: 'Скорр. стоимость, руб.', key: null, objVal: '—', fn: c => fmtMoneyN(c.adjPrice), highlight: true },
+    { label: 'Сумма корректировок', key: null, objVal: '—', fn: c => (c.corrSum * 100).toFixed(0) + '%' },
     { label: 'Вес (ранг)', key: null, objVal: '—', fn: c => c.rank },
   ];
 
@@ -717,7 +710,7 @@ function calculate() {
   });
 
   // Market value row
-  html += `<tr class="market-row"><td>Рыночная стоимость, ₽</td><td colspan="${withRank.length+1}">${fmtMoney(marketValue)}</td></tr>`;
+  html += `<tr class="market-row"><td>Рыночная стоимость, руб.</td><td colspan="${withRank.length+1}">${fmtMoney(marketValue)}</td></tr>`;
   html += '</tbody></table>';
 
   document.getElementById('output').innerHTML = html;
