@@ -351,6 +351,74 @@ body {
   padding: 8px 14px;
   display: block;
 }
+
+/* ========== MOBILE ADAPTIVE ========== */
+@media (max-width: 900px) {
+  .app { flex-direction: column; }
+
+  .sidebar {
+    width: 100%;
+    min-width: unset;
+    height: auto;
+    position: static;
+    border-right: none;
+    border-bottom: 2px solid var(--black);
+    padding: 20px 16px;
+  }
+
+  .logo-sub { font-size: 18px; }
+
+  .main { padding: 20px 16px; }
+
+  .main-title { font-size: 28px; }
+
+  .result-box {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 16px;
+  }
+  .result-market-value { font-size: 18px; }
+  .result-meta { gap: 12px; }
+  .result-meta-item { font-size: 13px; }
+
+  .stat-row { flex-direction: column; }
+  .stat-card { border-right: none; border-bottom: 2px solid var(--black); }
+  .stat-card:last-child { border-bottom: none; }
+
+  .analogs-grid { grid-template-columns: 1fr; }
+
+  .corrections-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .corrections-table thead, .corrections-table tbody, .corrections-table tr { display: table; width: 100%; table-layout: fixed; }
+  .corrections-table { white-space: nowrap; }
+
+  .field label { font-size: 10px; }
+  .field input, .field select { font-size: 14px; padding: 10px; }
+  .btn-calc { padding: 14px; font-size: 12px; }
+}
+
+@media (max-width: 600px) {
+  .main-title { font-size: 22px; letter-spacing: -0.5px; }
+
+  .result-box { padding: 14px; }
+  .result-market-label { font-size: 12px; }
+  .result-market-value { font-size: 17px; }
+  .result-meta { flex-direction: column; gap: 6px; }
+  .result-meta-item { font-size: 12px; }
+
+  .analog-card { padding: 14px; }
+  .analog-name { font-size: 14px; }
+
+  .table-label { font-size: 9px; padding: 8px 12px; }
+
+  .corrections-table th, .corrections-table td {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+
+  .logo-sub { font-size: 16px; }
+  .section-label { font-size: 9px; }
+}
 </style>
 </head>
 <body>
@@ -674,7 +742,7 @@ function calculate() {
 
   // Corrections table
   html += `<div class="table-label" style="margin-top:28px;margin-bottom:0">Расчет стоимости</div>`;
-  html += `<table class="corrections-table"><thead><tr>
+  html += `<div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><table class="corrections-table"><thead><tr>
     <th>Показатель</th>
     <th>Объект</th>
     ${withRank.map((c,i) => `<th>Аналог №${i+1}</th>`).join('')}
@@ -711,7 +779,7 @@ function calculate() {
 
   // Market value row
   html += `<tr class="market-row"><td>Рыночная стоимость, руб.</td><td colspan="${withRank.length+1}">${fmtMoney(marketValue)}</td></tr>`;
-  html += '</tbody></table>';
+  html += '</tbody></table></div>';
 
   document.getElementById('output').innerHTML = html;
 }
